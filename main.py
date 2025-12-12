@@ -1,53 +1,58 @@
 from generater import Population, Melody, Params, mapNoteToValue, mapValueToNote
 from export import melody_to_midi
-
-def fitness_function_sample(melody) -> int:
-    """
-    计算旋律的适应度值的示例函数。
-    这里简单地计算旋律中非休止符音符的数量作为适应度值。
-    """
-    fitness = sum(1 for note in melody.notes if note != mapNoteToValue['O'])
-    return fitness
+from fitness import fitness_music_theory, fitness_statistical, fitness_ml_markov, fitness_interactive
+import random
+import math
 
 def main():
-    # 设置遗传算法参数
-    generations = 50
-    initial_size = 20
-    threshold = 200
     params = Params(
-        population_size=50,
-        crossover_rate=0.7,
-        mutation_rate=0.1,
+        population_size=500,
+        crossover_rate=0.6,
+        mutation_rate=0.4,
         transpose_rate=0.1,
-        inversion_rate=0.1,
-        retrograde_rate=0.1,
+        inversion_rate=0.05,
+        retrograde_rate=0.05
     )
 
-    # 初始化种群
+    generations = 100
+    initial_size = 100
+    threshold = 1000
+
+    # current_fitness_function = fitness_music_theory
+    # current_fitness_function = fitness_statistical
+    current_fitness_function = fitness_ml_markov
+    # current_fitness_function = fitness_interactive
+
+    print(f"Using Fitness Function: {current_fitness_function.__name__}")
+
     population = Population(size=initial_size, threshold=threshold)
-    population.initialize(fitness_function_sample)
+    population.initialize(current_fitness_function)
 
-    # 进化过程
-    generation = 0
-    while generation < generations:
-        print(f"Generation {generation}:")
+    for generation in range(generations):
+        best_ind = population.find_best_individual()
+        avg_fitness = sum(ind.fitness for ind in population.individuals) / len(population.individuals)
+        
+        print(f"Generation {generation}: Best Fitness = {best_ind.fitness}, Avg Fitness = {avg_fitness:.2f}")
 
-        # 进化到下一代
-        population.evolve(fitness_function_sample, params)
+        population.evolve(current_fitness_function, params)
+        
         if population.check_termination():
             print("Threshold reached, stopping evolution.")
             break
-        generation += 1
     
-    # 输出最终结果
-    print("Final Generation:")
+    print("\nFinal Generation:")
     population_best = population.find_best_individual()
     if population_best:
         print(f" Best Individual Fitness = {population_best.fitness}")
         print(f" Notes: {[mapValueToNote[note] for note in population_best.notes]}")
-        # 导出为MIDI文件
-        melody_to_midi(population_best.notes)
-
+        
+        output_filename = "output_melody.mid"
+        try:
+            melody_to_midi(population_best.notes, output_filename)
+            print(f"Generated MIDI saved to {output_filename}")
+        except TypeError:
+             melody_to_midi(population_best.notes)
+             print(f"Generated MIDI saved (default filename)")
 
 if __name__ == "__main__":
     main()
